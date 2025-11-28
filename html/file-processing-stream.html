@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>File → Spliterator → Book Stream – Visual Flow</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 1.8rem;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+      background: #020617;
+      color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.3rem;
+    }
+    h1 { margin: 0; font-size: 1.8rem; }
+    .subtitle {
+      color: #9ca3af;
+      font-size: 0.95rem;
+      max-width: 980px;
+      text-align: center;
+    }
+
+    .shell {
+      width: 100%;
+      max-width: 1150px;
+      display: grid;
+      grid-template-columns: minmax(470px, 720px) minmax(260px, 360px);
+      gap: 1.3rem;
+      align-items: start;
+    }
+
+    .canvas {
+      background: radial-gradient(circle at top left,#0b1120,#020617 55%);
+      border-radius: 1.1rem;
+      border: 1px solid #1f2937;
+      padding: 0.9rem 1rem 1.1rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+      position: relative;
+      min-height: 420px;
+      overflow: hidden;
+    }
+    .canvas-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.4rem;
+      font-size: 0.85rem;
+      color: #9ca3af;
+    }
+
+    /* Flow stages row */
+    .flow-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-bottom: 0.7rem;
+      flex-wrap: wrap;
+    }
+    .stage-card {
+      border-radius: 0.8rem;
+      border: 1px solid #1f2937;
+      background: rgba(15,23,42,0.97);
+      padding: 0.35rem 0.55rem;
+      font-size: 0.75rem;
+      min-width: 100px;
+      text-align: center;
+      position: relative;
+      transition: box-shadow 0.15s ease, border 0.15s ease,
+        transform 0.15s ease;
+    }
+    .stage-card.active {
+      box-shadow: 0 0 0 1px rgba(56,189,248,0.95);
+      border-color: #0ea5e9;
+      transform: translateY(-1px);
+    }
+    .stage-title {
+      font-weight: 600;
+      font-size: 0.8rem;
+    }
+    .stage-sub {
+      font-size: 0.7rem;
+      color: #9ca3af;
+    }
+
+    .arrow {
+      width: 32px;
+      height: 2px;
+      background: linear-gradient(to right,#4b5563,#9ca3af);
+      position: relative;
+    }
+    .arrow::after {
+      content: "";
+      position: absolute;
+      right: -3px;
+      top: -3px;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      border-left: 6px solid #9ca3af;
+    }
+
+    /* Lanes for lines / chunks / books */
+    .lane {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.4rem;
+      margin-bottom: 0.45rem;
+    }
+    .lane-label {
+      font-size: 0.75rem;
+      color: #9ca3af;
+      width: 105px;
+      flex-shrink: 0;
+      text-align: right;
+      padding-right: 0.3rem;
+    }
+    .lane-body {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      flex: 1;
+    }
+
+    .line-box {
+      min-width: 120px;
+      padding: 0.25rem 0.3rem;
+      border-radius: 0.45rem;
+      border: 1px solid #374151;
+      background: #020617;
+      font-size: 0.75rem;
+      color: #e5e7eb;
+      position: relative;
+    }
+    .line-index {
+      position: absolute;
+      top: 2px;
+      left: 4px;
+      font-size: 0.65rem;
+      color: #6b7280;
+    }
+    .line-text {
+      margin-left: 1rem;
+      word-break: break-word;
+    }
+    .line-consumed {
+      opacity: 0.4;
+    }
+    .line-active {
+      border-color: #22c55e;
+      box-shadow: 0 0 0 1px rgba(34,197,94,0.8);
+      background: radial-gradient(circle at top left,#052e16,#020617 55%);
+    }
+
+    .chunk-box {
+      min-width: 130px;
+      padding: 0.3rem 0.4rem;
+      border-radius: 0.6rem;
+      border: 1px dashed #4ade80;
+      background: rgba(21,128,61,0.2);
+      font-size: 0.75rem;
+      color: #bbf7d0;
+    }
+    .chunk-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      margin-bottom: 0.1rem;
+    }
+    .chunk-line {
+      font-size: 0.72rem;
+    }
+
+    .book-card {
+      border-radius: 0.8rem;
+      border: 1px solid #1f2937;
+      background: rgba(15,23,42,0.97);
+      padding: 0.35rem 0.5rem;
+      font-size: 0.75rem;
+      min-width: 140px;
+    }
+    .book-title {
+      font-weight: 600;
+      font-size: 0.8rem;
+      margin-bottom: 0.1rem;
+    }
+    .book-meta {
+      font-size: 0.7rem;
+      color: #9ca3af;
+    }
+
+    .steps {
+      margin-top: 0.7rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .step-btn {
+      font-size: 0.75rem;
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      padding: 0.22rem 0.8rem;
+      background: #020617;
+      color: #e5e7eb;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.15s ease,
+        box-shadow 0.15s ease;
+    }
+    .step-btn:hover { transform: translateY(-1px); }
+    .step-btn.active {
+      background: #0ea5e9;
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 1px rgba(56,189,248,0.95);
+    }
+
+    .explanation {
+      background: #020617;
+      border-radius: 1.1rem;
+      border: 1px solid #1f2937;
+      padding: 0.95rem 1.1rem 1.05rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.55);
+      font-size: 0.9rem;
+    }
+    .ex-title { font-weight: 600; margin-bottom: 0.25rem; }
+    .ex-body { color: #d1d5db; }
+    .ex-extra {
+      margin-top: 0.6rem;
+      font-size: 0.85rem;
+      color: #bfdbfe;
+    }
+    .ex-extra ul {
+      margin: 0.25rem 0 0 1rem;
+      padding: 0;
+    }
+    .ex-extra li { margin: 0.12rem 0; }
+
+    .code-inline {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
+      background: rgba(15,23,42,0.85);
+      border-radius: 0.35rem;
+      padding: 0.07rem 0.25rem;
+      font-size: 0.82rem;
+    }
+
+    @media (max-width: 900px) {
+      body { padding: 1.2rem; }
+      .shell { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <h1>File → Custom Spliterator → Stream&lt;Book&gt;</h1>
+  <div class="subtitle">
+    Showing how your code turns <strong>multi-line file records</strong> into a <span class="code-inline">Stream&lt;Book&gt;</span>
+    using a <strong>custom Spliterator</strong> that groups 4 lines into each object.
+  </div>
+
+  <div class="shell">
+    <!-- LEFT: Visual canvas -->
+    <div class="canvas">
+      <div class="canvas-header">
+        <span>Flow: File → Stream&lt;String&gt; → Spliterator&lt;String&gt; → BookSpliterator → Stream&lt;Book&gt;</span>
+      </div>
+
+      <!-- Flow stages -->
+      <div class="flow-row" id="flowRow"></div>
+
+      <!-- Lanes -->
+      <div class="lane">
+        <div class="lane-label">File lines</div>
+        <div class="lane-body" id="fileLinesLane"></div>
+      </div>
+
+      <div class="lane">
+        <div class="lane-label">Current chunk<br/>(tryAdvance)</div>
+        <div class="lane-body" id="chunkLane"></div>
+      </div>
+
+      <div class="lane">
+        <div class="lane-label">Book objects</div>
+        <div class="lane-body" id="booksLane"></div>
+      </div>
+
+      <div class="lane">
+        <div class="lane-label">Terminal op</div>
+        <div class="lane-body" id="terminalLane"></div>
+      </div>
+
+      <!-- Steps -->
+      <div class="steps" id="stepButtons"></div>
+    </div>
+
+    <!-- RIGHT: Explanation -->
+    <div class="explanation">
+      <div class="ex-title" id="exTitle"></div>
+      <div class="ex-body" id="exBody"></div>
+      <div class="ex-extra" id="exExtra"></div>
+    </div>
+  </div>
+
+  <script>
+    // Sample file lines based on your format
+    const fileLines = [
+      "The Alchemist",
+      "Paulo Coelho",
+      "Adventure",
+      "4.5",
+      "1984",
+      "George Orwell",
+      "Dystopian",
+      "4.8"
+    ];
+
+    // Book objects that BookSpliterator will emit (conceptually)
+    const books = [
+      {
+        title: "The Alchemist",
+        author: "Paulo Coelho",
+        genre: "Adventure",
+        rating: 4.5
+      },
+      {
+        title: "1984",
+        author: "George Orwell",
+        genre: "Dystopian",
+        rating: 4.8
+      }
+    ];
+
+    // Flow stages for the top row (pipeline)
+    const flowStages = [
+      {
+        id: "filesLines",
+        label: "Files.lines(path)",
+        sub: "Stream<String> (lines)"
+      },
+      {
+        id: "baseSpliterator",
+        label: "Spliterator<String>",
+        sub: "baseSpliterator"
+      },
+      {
+        id: "bookSpliterator",
+        label: "BookSpliterator",
+        sub: "Spliterator<Book>"
+      },
+      {
+        id: "bookStream",
+        label: "Stream<Book>",
+        sub: "StreamSupport.stream(...)"
+      },
+      {
+        id: "terminal",
+        label: "forEach(System.out::println)",
+        sub: "consume Book"
+      }
+    ];
+
+    // Steps of the story
+    // consumedLines: how many file lines have been consumed in total
+    // chunkSize: lines used per Book (4 in your code)
+    // producedBooks: how many Book objects have been produced so far
+    // activeFlowStage: which pipeline box to highlight
+    const steps = [
+      {
+        label: "Big picture",
+        title: "What are we trying to achieve?",
+        text: `
+          We have a <strong>structured text file</strong> where each <code>Book</code> is
+          described by 4 consecutive lines:
+          <ol>
+            <li>Title</li>
+            <li>Author</li>
+            <li>Genre</li>
+            <li>Rating (double)</li>
+          </ol>
+          We want to turn this <strong>line-based file</strong> into a
+          <span class="code-inline">Stream&lt;Book&gt;</span> so we can use the Streams API
+          naturally:
+          <br/><span class="code-inline">Stream&lt;Book&gt; stream ... stream.forEach(System.out::println);</span>
+          <br/><br/>
+          A <strong>custom Spliterator</strong> (<code>BookSpliterator</code>) is the bridge:
+          it knows how to consume 4 lines at a time and emit one <code>Book</code>.
+        `,
+        extra: `
+          <ul>
+            <li>Core idea: <strong>decode</strong> multi-line records lazily as the stream is consumed.</li>
+            <li>We don’t read the whole file into memory – we build <code>Book</code> objects on demand.</li>
+          </ul>
+        `,
+        consumedLines: 0,
+        producedBooks: 0,
+        activeFlowStage: null
+      },
+      {
+        label: "Step 1 – Stream & base Spliterator",
+        title: "From file path to Spliterator<String>",
+        text: `
+          First, we open a stream of file lines:
+          <br/><span class="code-inline">Stream&lt;String&gt; lines = Files.lines(path);</span>
+          <br/><br/>
+          Then we obtain its <strong>base Spliterator</strong>:
+          <br/><span class="code-inline">Spliterator&lt;String&gt; baseSpliterator = lines.spliterator();</span>
+          <ul>
+            <li>Spliterator = “<em>splittable iterator</em>” that controls how stream elements are traversed.</li>
+            <li>Right now, it yields <code>String</code> lines one by one.</li>
+          </ul>
+        `,
+        extra: `
+          <ul>
+            <li>We still see the file as just a sequence of strings – no <code>Book</code> logic yet.</li>
+          </ul>
+        `,
+        consumedLines: 0,
+        producedBooks: 0,
+        activeFlowStage: "baseSpliterator"
+      },
+      {
+        label: "Step 2 – Wrap in BookSpliterator",
+        title: "BookSpliterator – a Spliterator<Book> on top of Spliterator<String>",
+        text: `
+          Now we wrap the base spliterator:
+          <br/><span class="code-inline">Spliterator&lt;Book&gt; spliterator = new BookSpliterator(baseSpliterator);</span>
+          <br/><br/>
+          Inside <code>BookSpliterator</code>:
+          <ul>
+            <li>It holds the <strong>baseSpliterator</strong> (of lines).</li>
+            <li><span class="code-inline">tryAdvance(Consumer&lt;? super Book&gt; action)</span> is overridden
+                to read <strong>4 lines</strong> and build one <code>Book</code>.</li>
+          </ul>
+        `,
+        extra: `
+          <ul>
+            <li>Conceptually: <strong>view</strong> the same underlying data as a stream of Books instead of Strings.</li>
+            <li>The grouping logic (4 lines → 1 Book) lives in <code>tryAdvance()</code>.</li>
+          </ul>
+        `,
+        consumedLines: 0,
+        producedBooks: 0,
+        activeFlowStage: "bookSpliterator"
+      },
+      {
+        label: "Step 3 – Stream<Book>",
+        title: "From BookSpliterator to Stream<Book>",
+        text: `
+          Next we create an actual <span class="code-inline">Stream&lt;Book&gt;</span>:
+          <br/><span class="code-inline">Stream&lt;Book&gt; stream = StreamSupport.stream(spliterator, false);</span>
+          <ul>
+            <li>The stream will call <code>spliterator.tryAdvance(...)</code> under the hood.</li>
+            <li>Each successful <code>tryAdvance</code> call produces exactly <strong>one Book</strong>.</li>
+          </ul>
+        `,
+        extra: `
+          <ul>
+            <li>Nothing has been read yet – this is still <strong>lazy</strong>.</li>
+            <li>Data only starts flowing when we use a <strong>terminal operation</strong> like <code>forEach</code>.</li>
+          </ul>
+        `,
+        consumedLines: 0,
+        producedBooks: 0,
+        activeFlowStage: "bookStream"
+      },
+      {
+        label: "Step 4 – First tryAdvance() → first Book",
+        title: "tryAdvance #1 – read first 4 lines and emit Book #1",
+        text: `
+          The terminal operation starts consumption:
+          <br/><span class="code-inline">stream.forEach(System.out::println);</span>
+          <br/><br/>
+          Internally the stream calls:
+          <br/><span class="code-inline">spliterator.tryAdvance(bookConsumer)</span>
+          <br/><br/>
+          Inside <code>BookSpliterator.tryAdvance</code>:
+          <pre style="font-size:0.75rem; background:#020617; border-radius:0.4rem; padding:0.4rem; border:1px solid #1f2937; white-space:pre-wrap;">
+if (base.tryAdvance(name  -&gt; this.name   = name)   &amp;&amp;
+    base.tryAdvance(author-&gt; this.author = author) &amp;&amp;
+    base.tryAdvance(genre -&gt; this.genre  = genre)  &amp;&amp;
+    base.tryAdvance(rating-&gt; this.rating = Double.valueOf(rating))) {
+
+    action.accept(new Book(name, author, genre, rating));
+    return true;
+}
+return false;
+          </pre>
+          This first call reads lines 0–3 and builds the first <code>Book</code>.
+        `,
+        extra: `
+          <ul>
+            <li>The <strong>short-circuit &&</strong> ensures that if any line is missing,
+                we stop and return <code>false</code> (no half-baked Book).</li>
+            <li>Visually: 4 lines are consumed → 1 Book object flows into the stream.</li>
+          </ul>
+        `,
+        consumedLines: 4,
+        producedBooks: 1,
+        activeFlowStage: "bookSpliterator"
+      },
+      {
+        label: "Step 5 – Second tryAdvance() → second Book",
+        title: "tryAdvance #2 – next 4 lines → Book #2",
+        text: `
+          The stream asks for the next element and calls <code>tryAdvance</code> again.
+          Now <code>baseSpliterator</code> is positioned at the 5th line ("1984").
+          <br/><br/>
+          The same 4-step pattern happens:
+          <ol>
+            <li>Read title: "1984"</li>
+            <li>Read author: "George Orwell"</li>
+            <li>Read genre: "Dystopian"</li>
+            <li>Read rating: "4.8" → parsed as <code>double</code></li>
+          </ol>
+          A second <code>Book</code> is created and sent to the consumer.
+        `,
+        extra: `
+          <ul>
+            <li>After consuming 8 lines, we have emitted 2 <code>Book</code> objects downstream.</li>
+            <li>Again, everything is <strong>lazy</strong> – only called because <code>forEach</code> keeps asking for more.</li>
+          </ul>
+        `,
+        consumedLines: 8,
+        producedBooks: 2,
+        activeFlowStage: "bookSpliterator"
+      },
+      {
+        label: "Step 6 – End of file (tryAdvance returns false)",
+        title: "End of file – tryAdvance() returns false",
+        text: `
+          After the second Book, the stream asks again:
+          <br/><span class="code-inline">spliterator.tryAdvance(bookConsumer)</span>
+          <br/><br/>
+          Now <code>baseSpliterator</code> has no more lines:
+          <ul>
+            <li>The first <code>tryAdvance</code> inside the chain returns <code>false</code>.</li>
+            <li>The short-circuit <span class="code-inline">&amp;&amp;</span> stops evaluation.</li>
+            <li><code>BookSpliterator.tryAdvance</code> returns <strong>false</strong> to the stream.</li>
+          </ul>
+          The stream understands that the source is exhausted and <code>forEach</code> finishes.
+        `,
+        extra: `
+          <ul>
+            <li>Each <code>true</code> from <code>tryAdvance</code> = one <code>Book</code> delivered.</li>
+            <li>A final <code>false</code> means “no more books” – the pipeline shuts down cleanly.</li>
+            <li>This pattern works for arbitrarily large files without loading everything into memory.</li>
+          </ul>
+        `,
+        consumedLines: 8,
+        producedBooks: 2,
+        activeFlowStage: "terminal"
+      }
+    ];
+
+    // DOM refs
+    const flowRow = document.getElementById("flowRow");
+    const fileLinesLane = document.getElementById("fileLinesLane");
+    const chunkLane = document.getElementById("chunkLane");
+    const booksLane = document.getElementById("booksLane");
+    const terminalLane = document.getElementById("terminalLane");
+    const stepButtons = document.getElementById("stepButtons");
+    const exTitle = document.getElementById("exTitle");
+    const exBody = document.getElementById("exBody");
+    const exExtra = document.getElementById("exExtra");
+
+    let currentStepIndex = 0;
+
+    // Render the flow pipeline row
+    function renderFlowRow(activeId) {
+      flowRow.innerHTML = "";
+      flowStages.forEach((stage, idx) => {
+        const card = document.createElement("div");
+        card.className = "stage-card";
+        if (stage.id === activeId) {
+          card.classList.add("active");
+        }
+
+        const title = document.createElement("div");
+        title.className = "stage-title";
+        title.textContent = stage.label;
+
+        const sub = document.createElement("div");
+        sub.className = "stage-sub";
+        sub.textContent = stage.sub;
+
+        card.appendChild(title);
+        card.appendChild(sub);
+        flowRow.appendChild(card);
+
+        if (idx < flowStages.length - 1) {
+          const arrow = document.createElement("div");
+          arrow.className = "arrow";
+          flowRow.appendChild(arrow);
+        }
+      });
+    }
+
+    // Render file lines with consumption info
+    function renderFileLines(consumedCount) {
+      fileLinesLane.innerHTML = "";
+      fileLines.forEach((line, index) => {
+        const box = document.createElement("div");
+        box.className = "line-box";
+
+        const idxSpan = document.createElement("span");
+        idxSpan.className = "line-index";
+        idxSpan.textContent = index + 1;
+
+        const textSpan = document.createElement("div");
+        textSpan.className = "line-text";
+        textSpan.textContent = line;
+
+        box.appendChild(idxSpan);
+        box.appendChild(textSpan);
+
+        if (index < consumedCount) {
+          box.classList.add("line-consumed");
+        }
+
+        fileLinesLane.appendChild(box);
+      });
+    }
+
+    // Render the current 4-line chunk for the step
+    function renderChunk(consumedCount) {
+      chunkLane.innerHTML = "";
+
+      if (consumedCount === 0) {
+        const text = document.createElement("div");
+        text.style.fontSize = "0.8rem";
+        text.style.color = "#9ca3af";
+        text.textContent = "No tryAdvance() call yet – no chunk read.";
+        chunkLane.appendChild(text);
+        return;
+      }
+
+      // Last chunk of 4 lines that was just consumed
+      const chunkEnd = consumedCount - 1;
+      const chunkStart = Math.max(0, chunkEnd - 3);
+      if (chunkStart >= fileLines.length) return;
+
+      const chunk = document.createElement("div");
+      chunk.className = "chunk-box";
+
+      const title = document.createElement("div");
+      title.className = "chunk-title";
+      title.textContent = `Current record (${chunkStart + 1}–${chunkEnd + 1})`;
+      chunk.appendChild(title);
+
+      for (let i = chunkStart; i <= chunkEnd && i < fileLines.length; i++) {
+        const line = document.createElement("div");
+        line.className = "chunk-line";
+        line.textContent = fileLines[i];
+        chunk.appendChild(line);
+      }
+
+      chunkLane.appendChild(chunk);
+
+      // Also visually highlight those 4 in the file lane
+      const boxes = fileLinesLane.querySelectorAll(".line-box");
+      for (let i = chunkStart; i <= chunkEnd && i < boxes.length; i++) {
+        boxes[i].classList.add("line-active");
+      }
+    }
+
+    // Render produced Book cards
+    function renderBooks(count) {
+      booksLane.innerHTML = "";
+      if (count === 0) {
+        const text = document.createElement("div");
+        text.style.fontSize = "0.8rem";
+        text.style.color = "#9ca3af";
+        text.textContent = "No Book objects created yet.";
+        booksLane.appendChild(text);
+        return;
+      }
+
+      books.slice(0, count).forEach(book => {
+        const card = document.createElement("div");
+        card.className = "book-card";
+
+        const title = document.createElement("div");
+        title.className = "book-title";
+        title.textContent = book.title;
+
+        const meta = document.createElement("div");
+        meta.className = "book-meta";
+        meta.innerHTML =
+          `Author: ${book.author}<br/>Genre: ${book.genre}<br/>Rating: ${book.rating}`;
+
+        card.appendChild(title);
+        card.appendChild(meta);
+        booksLane.appendChild(card);
+      });
+    }
+
+    // Render terminal (forEach) info
+    function renderTerminal(producedCount, activeStageId) {
+      terminalLane.innerHTML = "";
+
+      if (activeStageId !== "terminal") {
+        const text = document.createElement("div");
+        text.style.fontSize = "0.8rem";
+        text.style.color = "#9ca3af";
+        text.textContent = "forEach(...) will print each Book as it arrives.";
+        terminalLane.appendChild(text);
+        return;
+      }
+
+      const text = document.createElement("div");
+      text.style.fontSize = "0.8rem";
+      text.style.color = "#e5e7eb";
+      text.innerHTML = `
+        <strong>forEach(System.out::println)</strong> receives the Books one by one:<br/>
+        <code style="font-size:0.78rem;">Book{ title="The Alchemist", ... }</code><br/>
+        <code style="font-size:0.78rem;">Book{ title="1984", ... }</code><br/>
+        Then <code>tryAdvance</code> returns false and the loop stops.
+      `;
+      terminalLane.appendChild(text);
+    }
+
+    function renderStepButtons() {
+      stepButtons.innerHTML = "";
+      steps.forEach((step, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "step-btn" + (idx === 0 ? " active" : "");
+        btn.textContent = `${idx + 1}. ${step.label}`;
+        btn.addEventListener("click", () => renderStep(idx));
+        stepButtons.appendChild(btn);
+      });
+    }
+
+    function renderStep(index) {
+      const step = steps[index];
+      currentStepIndex = index;
+
+      renderFlowRow(step.activeFlowStage);
+      renderFileLines(step.consumedLines);
+      renderChunk(step.consumedLines);
+      renderBooks(step.producedBooks);
+      renderTerminal(step.producedBooks, step.activeFlowStage);
+
+      exTitle.innerHTML = step.title;
+      exBody.innerHTML = step.text;
+      exExtra.innerHTML = step.extra;
+
+      const btns = stepButtons.querySelectorAll(".step-btn");
+      btns.forEach((b, i) => {
+        b.classList.toggle("active", i === index);
+      });
+    }
+
+    // Init
+    renderStepButtons();
+    renderStep(0);
+  </script>
+</body>
+</html>
