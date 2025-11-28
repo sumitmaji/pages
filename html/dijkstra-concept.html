@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dijkstra's Shortest Path – Interactive Animation</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 1.8rem;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+      background: #020617;
+      color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.3rem;
+    }
+    h1 { margin: 0; font-size: 1.8rem; }
+    .subtitle { color: #9ca3af; font-size: 0.95rem; }
+
+    .shell {
+      width: 100%;
+      max-width: 1100px;
+      display: grid;
+      grid-template-columns: minmax(420px, 620px) minmax(260px, 360px);
+      gap: 1.3rem;
+      align-items: start;
+    }
+
+    .canvas {
+      background: radial-gradient(circle at top left,#0b1120,#020617 55%);
+      border-radius: 1.1rem;
+      border: 1px solid #1f2937;
+      padding: 0.9rem 1rem 1.1rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+      min-height: 380px;
+      overflow: hidden;
+    }
+    .canvas-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.4rem;
+      font-size: 0.85rem;
+      color: #9ca3af;
+    }
+
+    #graphSvg {
+      width: 100%;
+      height: 260px;
+      border-radius: 0.9rem;
+      border: 1px solid #1f2937;
+      background: linear-gradient(to bottom,#020617,#020617 45%,#0f172a);
+    }
+
+    .steps {
+      margin-top: 0.6rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .step-btn {
+      font-size: 0.75rem;
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      padding: 0.22rem 0.8rem;
+      background: #020617;
+      color: #e5e7eb;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.15s ease,
+        box-shadow 0.15s ease;
+    }
+    .step-btn:hover { transform: translateY(-1px); }
+    .step-btn.active {
+      background: #0ea5e9;
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 1px rgba(56,189,248,0.95);
+    }
+
+    /* Nodes / edges */
+    .node-circle {
+      fill: #0ea5e9;
+      stroke: #e5e7eb;
+      stroke-width: 2;
+      filter: drop-shadow(0 2px 3px rgba(0,0,0,0.6));
+      transition: fill 0.2s ease, stroke 0.2s ease, transform 0.2s ease;
+    }
+    .node-source {
+      fill: #22c55e;
+      stroke: #bbf7d0;
+    }
+    .node-current {
+      fill: #facc15;
+      stroke: #fef3c7;
+    }
+    .node-visited {
+      fill: #4ade80;
+      stroke: #bbf7d0;
+    }
+
+    .node-text {
+      fill: #0f172a;
+      font-size: 11px;
+      font-weight: 600;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    .edge {
+      stroke: rgba(148,163,184,0.9);
+      stroke-width: 2;
+      stroke-linecap: round;
+      transition: stroke 0.2s ease, stroke-width 0.2s ease;
+    }
+    .edge.relaxed {
+      stroke: #f97316;
+      stroke-width: 3;
+    }
+
+    .weight-text {
+      fill: #e5e7eb;
+      font-size: 10px;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    /* Distances + PQ panel */
+    .state-panel {
+      margin-top: 0.8rem;
+      display: grid;
+      grid-template-columns: 1.2fr 1.3fr;
+      gap: 0.6rem;
+      font-size: 0.8rem;
+    }
+
+    .panel-box {
+      border-radius: 0.7rem;
+      border: 1px solid #1f2937;
+      background: rgba(15,23,42,0.9);
+      padding: 0.45rem 0.6rem;
+    }
+    .panel-box h3 {
+      margin: 0 0 0.3rem 0;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #9ca3af;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+    th, td {
+      padding: 0.20rem 0.3rem;
+      text-align: center;
+    }
+    th {
+      color: #9ca3af;
+      font-weight: 500;
+      border-bottom: 1px solid #1f2937;
+    }
+    td {
+      border-bottom: 1px solid #111827;
+    }
+    .dist-infinity {
+      color: #9ca3af;
+      font-style: italic;
+    }
+    .dist-updated {
+      color: #facc15;
+      font-weight: 600;
+    }
+
+    .pq-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+    }
+    .pq-item {
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      padding: 0.15rem 0.6rem;
+      background: #020617;
+      color: #e5e7eb;
+    }
+    .pq-item.current {
+      border-color: #facc15;
+      box-shadow: 0 0 0 1px rgba(250,204,21,0.9);
+    }
+
+    .explanation {
+      background: #020617;
+      border-radius: 1.1rem;
+      border: 1px solid #1f2937;
+      padding: 0.95rem 1.1rem 1.05rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.55);
+      font-size: 0.9rem;
+    }
+    .ex-title { font-weight: 600; margin-bottom: 0.25rem; }
+    .ex-body { color: #d1d5db; }
+    .ex-extra {
+      margin-top: 0.6rem;
+      font-size: 0.85rem;
+      color: #bfdbfe;
+    }
+    .ex-extra ul {
+      margin: 0.25rem 0 0 1rem;
+      padding: 0;
+    }
+    .ex-extra li { margin: 0.12rem 0; }
+
+    .code-inline {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
+      background: rgba(15,23,42,0.85);
+      border-radius: 0.35rem;
+      padding: 0.07rem 0.25rem;
+      font-size: 0.82rem;
+    }
+
+    @media (max-width: 900px) {
+      body { padding: 1.2rem; }
+      .shell { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Dijkstra's Shortest Path – Interactive Animation</h1>
+  <div class="subtitle">
+    Priority queue, distance table, and graph updates – shown step-by-step from a single source.
+  </div>
+
+  <div class="shell">
+    <!-- LEFT: Graph + steps + state -->
+    <div class="canvas">
+      <div class="canvas-header">
+        <span id="currentStepLabel">Step 1 – Initialization</span>
+        <span style="font-size:0.8rem;color:#9ca3af;">Source vertex: A</span>
+      </div>
+
+      <svg id="graphSvg" viewBox="0 0 400 260"></svg>
+
+      <div class="state-panel">
+        <div class="panel-box">
+          <h3>Distance Table (from A)</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Vertex</th>
+                <th>d[v]</th>
+                <th>From</th>
+              </tr>
+            </thead>
+            <tbody id="distTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="panel-box">
+          <h3>Priority Queue (min-heap conceptually)</h3>
+          <div id="pqItems" class="pq-items"></div>
+          <div style="margin-top:0.4rem;font-size:0.75rem;color:#9ca3af;">
+            Queue stores pairs <span class="code-inline">(vertex, distance)</span>,
+            always extracting the smallest distance first.
+          </div>
+        </div>
+      </div>
+
+      <div class="steps" id="stepButtons"></div>
+    </div>
+
+    <!-- RIGHT: Explanation -->
+    <div class="explanation">
+      <div class="ex-title" id="exTitle"></div>
+      <div class="ex-body" id="exBody"></div>
+      <div class="ex-extra" id="exExtra"></div>
+    </div>
+  </div>
+
+  <script>
+    /*
+      We use a small sample graph:
+
+         (4)       (1)
+      A ----- B ------- C
+       \      | \       |
+      (2)\   (2) (5)   (3)
+           \  |    \    |
+             D ---- E --
+               (7)   (1)
+
+      Source: A
+    */
+
+    const steps = [
+      {
+        label: "Initialization",
+        title: "Step 1 – Initialization",
+        text: `
+          Dijkstra's algorithm starts by initializing the distances:
+          <ul>
+            <li>Set <span class="code-inline">d[A] = 0</span> for the source A.</li>
+            <li>Set <span class="code-inline">d[v] = ∞</span> for all other vertices.</li>
+            <li>Insert A into the priority queue with distance 0.</li>
+          </ul>`,
+        extra: `
+          <ul>
+            <li>The priority queue ensures we always expand the vertex with the current
+                smallest known distance.</li>
+          </ul>
+        `,
+        currentVertex: null,
+        visited: [],
+        distances: {
+          A: { dist: 0,  prev: "-" },
+          B: { dist: Infinity, prev: "-" },
+          C: { dist: Infinity, prev: "-" },
+          D: { dist: Infinity, prev: "-" },
+          E: { dist: Infinity, prev: "-" }
+        },
+        pq: [
+          { v: "A", dist: 0, current: true }
+        ],
+        relaxedEdges: []
+      },
+      {
+        label: "Extract A, relax neighbors",
+        title: "Step 2 – Process A (extract-min from PQ)",
+        text: `
+          We repeatedly extract the vertex with smallest distance from the
+          priority queue. The first one is the source A:
+          <ul>
+            <li>Current vertex is A with <span class="code-inline">d[A] = 0</span>.</li>
+            <li>We relax all edges outgoing from A: A→B and A→D.</li>
+          </ul>`,
+        extra: `
+          <ul>
+            <li>Relaxing an edge (u, v, w) means: if <span class="code-inline">d[u] + w &lt; d[v]</span>,
+                update <span class="code-inline">d[v]</span>.</li>
+            <li>From A: d[B] becomes 4, d[D] becomes 2.</li>
+          </ul>
+        `,
+        currentVertex: "A",
+        visited: ["A"],
+        distances: {
+          A: { dist: 0, prev: "-" },
+          B: { dist: 4, prev: "A", updated: true },
+          C: { dist: Infinity, prev: "-" },
+          D: { dist: 2, prev: "A", updated: true },
+          E: { dist: Infinity, prev: "-" }
+        },
+        pq: [
+          { v: "D", dist: 2, current: true },
+          { v: "B", dist: 4 }
+        ],
+        relaxedEdges: [
+          { from: "A", to: "B" },
+          { from: "A", to: "D" }
+        ]
+      },
+      {
+        label: "Extract D, relax neighbors",
+        title: "Step 3 – Process D (next smallest distance)",
+        text: `
+          Next, we extract D from the priority queue (it has the smallest
+          distance 2):
+          <ul>
+            <li>Current vertex is D with <span class="code-inline">d[D] = 2</span>.</li>
+            <li>We relax edges from D: D→B and D→E.</li>
+          </ul>`,
+        extra: `
+          <ul>
+            <li>Via D, we can reach B with distance 2 + 2 = 4, which ties the
+                previous 4 → we can keep existing or update (implementation choice).</li>
+            <li>E can be reached with distance 2 + 7 = 9 → d[E] becomes 9.</li>
+          </ul>
+        `,
+        currentVertex: "D",
+        visited: ["A", "D"],
+        distances: {
+          A: { dist: 0, prev: "-" },
+          B: { dist: 4, prev: "A" },
+          C: { dist: Infinity, prev: "-" },
+          D: { dist: 2, prev: "A" },
+          E: { dist: 9, prev: "D", updated: true }
+        },
+        pq: [
+          { v: "B", dist: 4, current: true },
+          { v: "E", dist: 9 }
+        ],
+        relaxedEdges: [
+          { from: "D", to: "B" },
+          { from: "D", to: "E" }
+        ]
+      },
+      {
+        label: "Extract B, relax neighbors",
+        title: "Step 4 – Process B and update C & E",
+        text: `
+          The next vertex with minimum distance is B (d[B] = 4):
+          <ul>
+            <li>Current vertex is B.</li>
+            <li>We relax edges from B: B→C and B→E.</li>
+          </ul>`,
+        extra: `
+          <ul>
+            <li>To C: 4 + 1 = 5 → update d[C] = 5.</li>
+            <li>To E: 4 + 5 = 9 → ties the existing 9 via D.</li>
+            <li>Now C is discovered with distance 5 and added to PQ.</li>
+          </ul>
+        `,
+        currentVertex: "B",
+        visited: ["A", "D", "B"],
+        distances: {
+          A: { dist: 0, prev: "-" },
+          B: { dist: 4, prev: "A" },
+          C: { dist: 5, prev: "B", updated: true },
+          D: { dist: 2, prev: "A" },
+          E: { dist: 9, prev: "D" }
+        },
+        pq: [
+          { v: "C", dist: 5, current: true },
+          { v: "E", dist: 9 }
+        ],
+        relaxedEdges: [
+          { from: "B", to: "C" },
+          { from: "B", to: "E" }
+        ]
+      },
+      {
+        label: "Extract C, relax neighbors",
+        title: "Step 5 – Process C and try to improve E",
+        text: `
+          Now C has the smallest distance in the queue (d[C] = 5):
+          <ul>
+            <li>Current vertex is C.</li>
+            <li>We relax its neighbor E: C→E (weight 3).</li>
+          </ul>`,
+        extra: `
+          <ul>
+            <li>New candidate distance for E: 5 + 3 = 8, which is better than 9.</li>
+            <li>Update d[E] to 8 and set predecessor to C.</li>
+          </ul>
+        `,
+        currentVertex: "C",
+        visited: ["A", "D", "B", "C"],
+        distances: {
+          A: { dist: 0, prev: "-" },
+          B: { dist: 4, prev: "A" },
+          C: { dist: 5, prev: "B" },
+          D: { dist: 2, prev: "A" },
+          E: { dist: 8, prev: "C", updated: true }
+        },
+        pq: [
+          { v: "E", dist: 8, current: true }
+        ],
+        relaxedEdges: [
+          { from: "C", to: "E" }
+        ]
+      },
+      {
+        label: "Extract E – all vertices processed",
+        title: "Step 6 – Finalize E, algorithm terminates",
+        text: `
+          Finally we extract E with distance 8:
+          <ul>
+            <li>Current vertex is E; it has no better outgoing relaxation to perform.</li>
+            <li>Priority queue becomes empty → algorithm terminates.</li>
+          </ul>`,
+        extra: `
+          <ul>
+            <li>The shortest distances from A are:</li>
+            <li style="margin-left:1rem;">
+              d[A] = 0<br/>
+              d[D] = 2 (A → D)<br/>
+              d[B] = 4 (A → B or A → D → B)<br/>
+              d[C] = 5 (A → B → C)<br/>
+              d[E] = 8 (A → B → C → E)
+            </li>
+            <li>To reconstruct a path, follow the <strong>prev</strong> pointers backwards.</li>
+          </ul>
+        `,
+        currentVertex: "E",
+        visited: ["A", "D", "B", "C", "E"],
+        distances: {
+          A: { dist: 0, prev: "-" },
+          B: { dist: 4, prev: "A" },
+          C: { dist: 5, prev: "B" },
+          D: { dist: 2, prev: "A" },
+          E: { dist: 8, prev: "C" }
+        },
+        pq: [],
+        relaxedEdges: []
+      }
+    ];
+
+    // Fixed positions for vertices in SVG
+    const vertices = {
+      A: { x: 70,  y: 60 },
+      B: { x: 200, y: 40 },
+      C: { x: 330, y: 60 },
+      D: { x: 110, y: 190 },
+      E: { x: 270, y: 200 }
+    };
+
+    // Undirected edges with weights (we'll draw both directions as one line)
+    const baseEdges = [
+      { from: "A", to: "B", w: 4 },
+      { from: "A", to: "D", w: 2 },
+      { from: "B", to: "C", w: 1 },
+      { from: "B", to: "D", w: 2 },
+      { from: "B", to: "E", w: 5 },
+      { from: "C", to: "E", w: 3 },
+      { from: "D", to: "E", w: 7 }
+    ];
+
+    const graphSvg = document.getElementById("graphSvg");
+    const stepButtonsContainer = document.getElementById("stepButtons");
+    const distTableBody = document.getElementById("distTableBody");
+    const pqItems = document.getElementById("pqItems");
+    const currentStepLabel = document.getElementById("currentStepLabel");
+    const exTitle = document.getElementById("exTitle");
+    const exBody = document.getElementById("exBody");
+    const exExtra = document.getElementById("exExtra");
+
+    let currentStepIndex = 0;
+
+    function clearSvg() {
+      while (graphSvg.firstChild) graphSvg.removeChild(graphSvg.firstChild);
+    }
+
+    function renderGraph(step) {
+      clearSvg();
+
+      // Precompute which edges were relaxed this step
+      const relaxedSet = new Set(
+        (step.relaxedEdges || []).map(
+          e => [e.from, e.to].sort().join("-")
+        )
+      );
+
+      // Draw edges
+      baseEdges.forEach(e => {
+        const v1 = vertices[e.from];
+        const v2 = vertices[e.to];
+        const key = [e.from, e.to].sort().join("-");
+        const isRelaxed = relaxedSet.has(key);
+
+        const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+        line.setAttribute("x1", v1.x);
+        line.setAttribute("y1", v1.y);
+        line.setAttribute("x2", v2.x);
+        line.setAttribute("y2", v2.y);
+        line.setAttribute("class","edge" + (isRelaxed ? " relaxed" : ""));
+        graphSvg.appendChild(line);
+
+        // Weight label
+        const midX = (v1.x + v2.x) / 2;
+        const midY = (v1.y + v2.y) / 2;
+        const text = document.createElementNS("http://www.w3.org/2000/svg","text");
+        text.setAttribute("x", midX);
+        text.setAttribute("y", midY - 8);
+        text.setAttribute("class","weight-text");
+        text.textContent = e.w;
+        graphSvg.appendChild(text);
+      });
+
+      // Draw nodes
+      Object.keys(vertices).forEach(v => {
+        const { x, y } = vertices[v];
+        const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+
+        const circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+        circle.setAttribute("cx", x);
+        circle.setAttribute("cy", y);
+        circle.setAttribute("r", 16);
+        circle.setAttribute("class","node-circle");
+
+        if (v === "A") {
+          circle.classList.add("node-source");
+        }
+        if (step.visited && step.visited.includes(v)) {
+          circle.classList.add("node-visited");
+        }
+        if (step.currentVertex === v) {
+          // current overrides to emphasize
+          circle.classList.remove("node-visited");
+          circle.classList.add("node-current");
+        }
+
+        const text = document.createElementNS("http://www.w3.org/2000/svg","text");
+        text.setAttribute("x", x);
+        text.setAttribute("y", y);
+        text.setAttribute("class","node-text");
+        text.textContent = v;
+
+        g.appendChild(circle);
+        g.appendChild(text);
+
+        graphSvg.appendChild(g);
+      });
+    }
+
+    function renderDistTable(step) {
+      distTableBody.innerHTML = "";
+      const order = ["A","B","C","D","E"];
+
+      order.forEach(v => {
+        const row = document.createElement("tr");
+        const dInfo = step.distances[v];
+
+        const tdV = document.createElement("td");
+        tdV.textContent = v;
+        row.appendChild(tdV);
+
+        const tdD = document.createElement("td");
+        if (dInfo.dist === Infinity) {
+          tdD.textContent = "∞";
+          tdD.classList.add("dist-infinity");
+        } else {
+          tdD.textContent = dInfo.dist;
+          if (dInfo.updated) {
+            tdD.classList.add("dist-updated");
+          }
+        }
+        row.appendChild(tdD);
+
+        const tdP = document.createElement("td");
+        tdP.textContent = dInfo.prev;
+        row.appendChild(tdP);
+
+        distTableBody.appendChild(row);
+      });
+    }
+
+    function renderPQ(step) {
+      pqItems.innerHTML = "";
+      if (!step.pq || step.pq.length === 0) {
+        const span = document.createElement("span");
+        span.style.color = "#9ca3af";
+        span.style.fontStyle = "italic";
+        span.textContent = "empty";
+        pqItems.appendChild(span);
+        return;
+      }
+      step.pq.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "pq-item";
+        if (item.current) div.classList.add("current");
+        div.textContent = `${item.v} : ${item.dist}`;
+        pqItems.appendChild(div);
+      });
+    }
+
+    function renderStep(index) {
+      const step = steps[index];
+      currentStepIndex = index;
+
+      renderGraph(step);
+      renderDistTable(step);
+      renderPQ(step);
+
+      currentStepLabel.textContent = step.title;
+      exTitle.innerHTML = step.title;
+      exBody.innerHTML = step.text;
+      exExtra.innerHTML = step.extra;
+
+      const btns = stepButtonsContainer.querySelectorAll(".step-btn");
+      btns.forEach((b, i) => {
+        b.classList.toggle("active", i === index);
+      });
+    }
+
+    function renderStepButtons() {
+      stepButtonsContainer.innerHTML = "";
+      steps.forEach((step, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "step-btn" + (idx === 0 ? " active" : "");
+        btn.textContent = `${idx + 1}. ${step.label}`;
+        btn.addEventListener("click", () => renderStep(idx));
+        stepButtonsContainer.appendChild(btn);
+      });
+    }
+
+    // Initial render
+    renderStepButtons();
+    renderStep(0);
+  </script>
+</body>
+</html>
